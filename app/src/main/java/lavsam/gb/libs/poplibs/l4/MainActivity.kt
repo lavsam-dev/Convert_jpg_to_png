@@ -22,7 +22,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity(), View.OnClickListener,
-    ConversionDialogFragment.OnButtonClickListener  {
+    ConversionDialogFragment.OnButtonClickListener {
 
     private var pathImagePicked: String? = null
     private var pathImageConverted: String? = null
@@ -131,12 +131,13 @@ class MainActivity : AppCompatActivity(), View.OnClickListener,
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         buttonConvert.isEnabled =
-            grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            grantResults.isNotEmpty() && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
     }
 
     private fun pickImage() {
         val intent = Intent(Intent.ACTION_PICK)
         intent.type = "image/*"
+//        intent.type = "*/*"
         intent.putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/jpg"))
         startActivityForResult(
             Intent.createChooser(intent, "Select Picture"),
@@ -151,7 +152,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener,
             data != null
         ) {
             val imagePickedUri = data.data
-            if (imagePickedUri != null) {
+            imagePickedUri?.let {
                 imagePicked.background = null
                 imagePicked.setImageURI(imagePickedUri)
                 pathImagePicked = getPathFromUri(imagePickedUri)
@@ -182,26 +183,27 @@ class MainActivity : AppCompatActivity(), View.OnClickListener,
         conversionDialogFragment.show(supportFragmentManager, "conversionDialogTag")
 
         converterDisposable = CompositeDisposable()
-        converterDisposable?.add(ImageConverter.convertJpgToPng(imagePicked, pathImagePicked)
-            .delay(3, TimeUnit.SECONDS)
-            .cache()
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe({
-                Toast.makeText(this, "${it.first} converted to png.", Toast.LENGTH_LONG).show()
-                pathImageConverted = it.first
-                isConverting = false
+        converterDisposable?.add(
+            ImageConverter.convertJpgToPng(imagePicked, pathImagePicked)
+                .delay(3, TimeUnit.SECONDS)
+                .cache()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe({
+                    Toast.makeText(this, "${it.first} converted to png.", Toast.LENGTH_LONG).show()
+                    pathImageConverted = it.first
+                    isConverting = false
 
-                imageConverted.background = null
-                imageConverted.setImageBitmap(it.second)
-                textPathImageConverted.text = pathImageConverted
+                    imageConverted.background = null
+                    imageConverted.setImageBitmap(it.second)
+                    textPathImageConverted.text = pathImageConverted
 
-                conversionDialogFragment.dismiss()
-            }, {
-                Toast.makeText(this, it.message, Toast.LENGTH_LONG).show()
-                isConverting = false
-                conversionDialogFragment.dismiss()
-            })
+                    conversionDialogFragment.dismiss()
+                }, {
+                    Toast.makeText(this, it.message, Toast.LENGTH_LONG).show()
+                    isConverting = false
+                    conversionDialogFragment.dismiss()
+                })
         )
     }
 
